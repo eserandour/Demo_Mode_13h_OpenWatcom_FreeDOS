@@ -26,9 +26,9 @@
    --------------------------------------------------------- */
 
 typedef enum {
-    SCENE_1  = 0,   /* pixels aléatoires (LCG)          */
-    SCENE_2  = 1,   /* démonstration palette VGA        */
-    SCENE_3  = 2    /* démonstration des polices        */
+    SCENE_1 = 0,   /* pixels aléatoires (LCG)   */
+    SCENE_2 = 1,   /* démonstration palette VGA */
+    SCENE_3 = 2    /* démonstration des polices */
 } Scene;
 
 /* ---------------------------------------------------------
