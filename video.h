@@ -45,12 +45,21 @@
    Macro de calcul d'offset dans le backbuffer
    --------------------------------------------------------- */
 
-/* Convertit des coordonnées (x, y) en offset linéaire.
-   Equivalent à y * 320 + x, mais optimisé :
-     y * 320 = y * 256 + y * 64
+/* Convertit des coordonnées (x, y) en offset linéaire dans
+   le backbuffer (ou la VRAM).
+
+   En mode 13h, les pixels sont stockés ligne par ligne :
+     ligne 0 : pixels 0..319
+     ligne 1 : pixels 320..639
+     ...
+   Donc le pixel (x, y) se trouve à l'offset : y * 320 + x
+
+   Optimisation par décomposition de la multiplication :
+     y * 320 = y * (256 + 64)    ← 256 + 64 = 320 exactement
+             = y * 256 + y * 64
              = (y << 8) + (y << 6)
-   Les décalages binaires sont plus rapides que la
-   multiplication sur 8086. */
+   Les décalages binaires remplacent une multiplication coûteuse
+   par deux décalages bon marché sur 8086. */
 #define OFFSET(x, y)  (((y) << 8) + ((y) << 6) + (x))
 
 /* ---------------------------------------------------------
