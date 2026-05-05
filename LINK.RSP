@@ -6,8 +6,10 @@ file palette.obj
 file graphics.obj
 file font.obj
 file fontdata.obj
+file image.obj
 file scene.obj
 file scene1.obj
 file scene2.obj
 file scene3.obj
+file scene4.obj
 name demo.exe
