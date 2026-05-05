@@ -17,6 +17,7 @@
 void scene1(void);
 void scene2(void);
 void scene3(void);
+void scene4(void);
 
 /* =========================================================
    ÉTAT GLOBAL
@@ -53,6 +54,7 @@ static SceneFunc scenes[] = {
     scene1,  /* SCENE_1 = 0 */
     scene2,  /* SCENE_2 = 1 */
     scene3,  /* SCENE_3 = 2 */
+    scene4,  /* SCENE_4 = 3 */
 };
 
 /* =========================================================
