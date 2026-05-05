@@ -78,6 +78,7 @@ static void drawPhase1(void)
                  startY + row * 10,
                  (unsigned char)c, 255, &FONT_BIOS);
     }
+    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
 }
 
 /* Sous-phase 2 : FONT_8 (myFont8 8x8 custom)
@@ -110,6 +111,7 @@ static void drawPhase2(void)
                  startY + row * 10,
                  (unsigned char)c, 255, &FONT_8);
     }
+    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
 }
 
 /* Sous-phase 3 : FONT_16 (myFont16 16x16 custom)
@@ -137,6 +139,7 @@ static void drawPhase3(void)
         col++;
         if (col >= 16) { col = 0; row++; }
     }
+    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
 }
 
 /* =========================================================
@@ -215,9 +218,15 @@ void scene3(void)
                 phase++;
                 if (phase >= NB_PHASES)
                 {
-                    phase = 0;
-                    shutdown();
-                    exit(0);
+                    phase       = 0;
+                    initialized = 0;
+                    /* Vider le buffer clavier : la touche qui a déclenché
+                       le fade-out a été consommée par getch(), mais une
+                       éventuelle touche résiduelle déclencherait le
+                       kbhit() de main et couperait la boucle avant que
+                       scene4 ne soit jamais appelée. */
+                    while (kbhit()) getch();
+                    setScene(SCENE_4);
                 }
             }
             break;
