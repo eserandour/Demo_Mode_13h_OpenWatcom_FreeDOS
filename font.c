@@ -8,8 +8,10 @@
    Les données brutes des glyphes sont dans fontdata.c.
    ========================================================= */
 
-#include <string.h>    /* memset */
-#include <dos.h>       /* MK_FP */
+#include <stdlib.h>    /* exit    */
+#include <string.h>    /* memset  */
+#include <malloc.h>    /* _fmalloc, _ffree */
+#include <dos.h>       /* MK_FP  */
 #include "video.h"     /* SCREEN_WIDTH */
 #include "graphics.h"  /* putPixel */
 #include "font.h"
@@ -24,9 +26,9 @@
    far = pointeur 32 bits (segment:offset). */
 static unsigned char far *biosFont = NULL;
 
-/* FontBank sous-jacentes. */
-FontBank myFont8;
-FontBank myFont16;
+/* FontBank sous-jacentes, allouées en far heap par initMyFont*(). */
+FontBank far *myFont8  = NULL;
+FontBank far *myFont16 = NULL;
 
 /* Structures Font globales prêtes à l'emploi.
    Initialisées par initFont() et initMyFont*().
@@ -42,7 +44,7 @@ Font FONT_16   = { FONT_TYPE_BANK, NULL, 16 };
 /* Prépare une FontBank vide pour la taille donnée.
    Met tous les slots LUT à -1 (aucun glyphe défini)
    et efface le tableau data[]. */
-static void initFontBank(FontBank *fb, FontSize size)
+static void initFontBank(FontBank far *fb, FontSize size)
 {
     int i, bpg;
 
@@ -59,7 +61,7 @@ static void initFontBank(FontBank *fb, FontSize size)
     fb->bytes_per_glyph = bpg;
 
     for (i = 0; i < 128; i++) fb->lut[i] = -1;
-    memset(fb->data, 0, sizeof(fb->data));
+    _fmemset(fb->data, 0, sizeof(fb->data));
 }
 
 /* =========================================================
@@ -69,14 +71,14 @@ static void initFontBank(FontBank *fb, FontSize size)
 /* Ajoute ou remplace un glyphe 8x8.
    Alloue un nouveau slot si le caractère n'existe pas encore
    dans la FontBank, sinon écrase l'existant. */
-void defineChar8(FontBank *fb, unsigned char c,
+void defineChar8(FontBank far *fb, unsigned char c,
                  unsigned char b0, unsigned char b1,
                  unsigned char b2, unsigned char b3,
                  unsigned char b4, unsigned char b5,
                  unsigned char b6, unsigned char b7)
 {
     int slot;
-    unsigned char *g;
+    unsigned char far *g;
 
     if (fb->lut[c] == -1)
     {
@@ -92,11 +94,11 @@ void defineChar8(FontBank *fb, unsigned char c,
 /* Ajoute ou remplace un glyphe 16x16.
    Stockage big-endian : octet haut en premier pour que
    le rendu lise les bits de gauche à droite. */
-void defineChar16(FontBank *fb, unsigned char c,
+void defineChar16(FontBank far *fb, unsigned char c,
                   unsigned int rows[16])
 {
     int slot, i;
-    unsigned char *g;
+    unsigned char far *g;
 
     if (fb->lut[c] == -1)
     {
@@ -140,7 +142,7 @@ static void renderGlyph8(int x, int y, unsigned char color,
    Reconstitue chaque ligne en unsigned int depuis 2 octets
    big-endian, puis teste les 16 bits avec masque 0x8000→0x0001. */
 static void renderGlyph16(int x, int y, unsigned char color,
-                           unsigned char *glyph)
+                           unsigned char far *glyph)
 {
     int row, col;
     unsigned int bits;
@@ -167,7 +169,7 @@ void drawChar(int x, int y, unsigned char c,
               unsigned char color, Font *f)
 {
     unsigned char far *glyph;
-    unsigned char     *g;
+    unsigned char far *g;
 
     if (f->type == FONT_TYPE_BIOS)
     {
@@ -177,7 +179,7 @@ void drawChar(int x, int y, unsigned char c,
     }
     else
     {
-        /* Police custom : chercher dans la FontBank. */
+        /* Police custom : chercher dans la FontBank far. */
         int slot = f->bank->lut[(int)c];
         if (slot < 0) return;   /* caractère non défini */
 
@@ -186,7 +188,7 @@ void drawChar(int x, int y, unsigned char c,
         switch (f->bank->size)
         {
             case FONT_SIZE_8:
-                renderGlyph8(x, y, color, (unsigned char far *)g);
+                renderGlyph8(x, y, color, g);
                 break;
             case FONT_SIZE_16:
                 renderGlyph16(x, y, color, g);
@@ -238,19 +240,24 @@ void initFont(void)
        pas besoin de modifier ses champs ici. */
 }
 
-/* Initialise myFont8, charge ses glyphes depuis fontdata.c,
+/* Alloue myFont8 en far heap, initialise la FontBank,
+   charge ses glyphes depuis fontdata.c,
    et met à jour FONT_8 pour qu'elle pointe dessus. */
 void initMyFont8(void)
 {
-    initFontBank(&myFont8, FONT_SIZE_8);
+    myFont8 = (FontBank far *)_fmalloc(sizeof(FontBank));
+    if (!myFont8) { setVideoMode(0x03); exit(1); }
+    initFontBank(myFont8, FONT_SIZE_8);
     _initFont8D();
-    FONT_8.bank = &myFont8;
+    FONT_8.bank = myFont8;
 }
 
-/* Initialise myFont16 et met à jour FONT_16. */
+/* Alloue myFont16 en far heap et met à jour FONT_16. */
 void initMyFont16(void)
 {
-    initFontBank(&myFont16, FONT_SIZE_16);
+    myFont16 = (FontBank far *)_fmalloc(sizeof(FontBank));
+    if (!myFont16) { setVideoMode(0x03); exit(1); }
+    initFontBank(myFont16, FONT_SIZE_16);
     _initFont16D();
-    FONT_16.bank = &myFont16;
+    FONT_16.bank = myFont16;
 }
