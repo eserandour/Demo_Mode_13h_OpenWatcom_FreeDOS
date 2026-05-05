@@ -13,6 +13,15 @@ projet/
 │   ├── scene2.c
 │   ├── scene3.c
 │   └── scene4.c
+├── images/
+│   ├── *.pal
+│   └── *.raw
+│
 ├── BUILD.BAT
 ├── LINK.RSP
-└── CLEAN.BAT
+├── CLEAN.BAT
+├── CLEANALL.BAT
+│
+└── OUTILS
+    ├── fonteditor.htm (pour créer ses propres polices de caractères)
+    └── img2vga.py (pour créer les fichiers *.pal et *.raw)
