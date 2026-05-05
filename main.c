@@ -4,7 +4,7 @@
    Environnement : Open Watcom 1.9, FreeDOS 1.4
    Mode vidéo    : 13h (320x200, 256 couleurs)
    Compilation   : voir BUILD.BAT et LINK.RSP  
-   Date          : 05/05/2026 à 18:06
+   Date          : 05/05/2026 à 22:56
 
    Séquence de démarrage :
    1. Allouer le backbuffer (avant le mode graphique).
