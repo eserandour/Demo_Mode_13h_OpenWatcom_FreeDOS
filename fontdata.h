@@ -5,7 +5,7 @@
    FONTDATA.H — Déclarations internes des chargeurs de glyphes
    =========================================================
    Ces trois fonctions sont appelées exclusivement par
-   font.c (dans initMyFont8/16) après initFontBank().
+   font.c (dans initMyFont8/16) après _initFontBank().
    Elles ne font partie de l'API publique : ne pas les
    appeler directement depuis les scènes ou main.c.
 
