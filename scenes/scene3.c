@@ -2,22 +2,29 @@
    SCENE3.C — Scène : Démonstration des polices
    =========================================================
    Affiche successivement tous les caractères de chaque
-   police disponible. L'utilisateur passe à la police
-   suivante en appuyant sur n'importe quelle touche.
+   police disponible.
 
    Sous-phases :
    1. FONT_BIOS : 128 caractères ASCII/IBM (ROM BIOS)
-   2. FONT_8    : les caractères définis dans fontdata.c
-   3. FONT_16   : les caractères définis dans fontdata.c
+   2. FONT_8    : 256 caractères custom 8x8
+   3. FONT_16   : 256 caractères custom 16x16, sur 2 pages
 
-   Sur appui touche :
-   - Fade-out 0.5 s
-   - Passage à la sous-phase suivante
-   - Fade-in 0.5 s
-   Après la 3e sous-phase : shutdown() + exit().
+   Navigation :
+   - Phases 1 et 2 : n'importe quelle touche → phase suivante
+   - Phase 3 (FONT_16) :
+       Tab / Shift+Tab → page suivante / précédente (sans fade)
+       Toute autre touche → fade-out vers SCENE_4
 
-   Optimisation : le backbuffer de chaque sous-phase est
-   construit une seule fois, puis seule la palette change
+   Transitions entre phases 1→2 et 2→3 :
+   - Fade-out 0.5 s, puis fade-in 0.5 s.
+
+   Grilles :
+     FONT_BIOS / FONT_8  : 16 col × 16 lignes, pas 10 px
+     FONT_16 page 1      : car. 0-127,  16 col × 8 lignes, pas 18 px
+     FONT_16 page 2      : car. 128-255, 16 col × 8 lignes, pas 18 px
+
+   Optimisation : le backbuffer est construit une seule fois
+   par (sous-phase, page), puis seule la palette évolue
    pendant les fades.
    ========================================================= */
 
@@ -29,8 +36,8 @@
                          setPalette, generateBlackPalette  */
 #include "graphics.h" /* clearScreen, drawLine             */
 #include "font.h"     /* Font, FONT_BIOS, FONT_8/16,
-                         myFont8/16, drawChar, drawText */
-#include "scene.h"    /* sceneStart                        */
+                         drawChar, drawText                */
+#include "scene.h"    /* setScene, SCENE_4                 */
 
 /* Prototype de shutdown() défini dans main.c. */
 void shutdown(void);
@@ -41,6 +48,7 @@ void shutdown(void);
 
 #define FADE_MS   500UL   /* durée du fade-in et fade-out  */
 #define NB_PHASES 3       /* nombre de sous-phases         */
+#define KEY_TAB   0x09    /* code ASCII de la touche Tab   */
 
 /* =========================================================
    ÉTATS INTERNES
@@ -57,17 +65,17 @@ typedef enum {
    ========================================================= */
 
 /* Sous-phase 1 : FONT_BIOS 8x8
-   Affiche les 128 caractères en grille 32x8.
-   Chaque cellule = 9 px (8 px glyphe + 1 px espace).
-   On accède directement à FONT_BIOS sans passer par la LUT
-   car tous les 128 caractères sont toujours définis en ROM. */
+   Affiche les 128 caractères en grille 16x8.
+   Chaque cellule = 10 px (8 px glyphe + 2 px marge).
+   La ROM BIOS ne contient ici que 128 glyphes (0–127) : 
+   on n'affiche pas au-delà. */
 static void drawPhase1(void)
 {
     int c, col, row;
     int startX = (SCREEN_WIDTH  - 16 * 10) / 2;
-    int startY = (SCREEN_HEIGHT - 8  * 10) / 2 + 9;
+    int startY = (SCREEN_HEIGHT -  8 * 10) / 2 + 9;
 
-    drawTextCentered(4, "FONT BIOS 8x8 - 128 caracteres", 255, &FONT_BIOS);
+    drawTextCentered(4, "biosFont (8x8) - 0..127", 255, &FONT_BIOS);
     drawLine(4, 15, 315, 15, 100);
 
     for (c = 0; c < 128; c++)
@@ -78,68 +86,76 @@ static void drawPhase1(void)
                  startY + row * 10,
                  (unsigned char)c, 255, &FONT_BIOS);
     }
-    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
 }
 
 /* Sous-phase 2 : FONT_8 (myFont8 8x8 custom)
-   N'affiche que les caractères définis (lut[c] != -1).
-   On accède à myFont8.lut pour tester chaque entrée.
-   Grille de 16 colonnes, espacement 10 px. */
+   Grille 16×16, espacement 10 px.
+   Les cases sans glyphe défini restent vides (trous voulus). */
 static void drawPhase2(void)
 {
-    int c, col = 0, row = 0;
-    int startX = (SCREEN_WIDTH - 16 * 10) / 2;
-    int startY = (SCREEN_HEIGHT - 8  * 10) / 2 + 9;
+    int c, col, row;
+    int startX = (SCREEN_WIDTH  - 16 * 10) / 2;
+    int startY = (SCREEN_HEIGHT - 16 * 10) / 2 + 9;
 
-    drawTextCentered(4, "FONT 8x8 - caracteres personnalises", 255, &FONT_BIOS);
+    drawTextCentered(4, "myFont8 (8x8) - 0..255", 255, &FONT_BIOS);
     drawLine(4, 15, 315, 15, 100);
 
-    for (c = 0; c < 128; c++)
+    for (c = 0; c < 256; c++)
     {
-        /* Ce filtre est intentionnellement désactivé.
-           Sans lui, drawChar() est appelé pour tous les c de 0 à 127,
-           y compris ceux absents de la FontBank. drawChar() les ignore
-           silencieusement (slot < 0 → return), ce qui laisse des
-           "trous" dans la grille aux positions non définies.
-           C'est un choix de présentation pour la démo : la grille
-           complète 16×8 est plus lisible qu'une grille partielle. */
-        // if (myFont8.lut[c] == -1) continue;
-        
         col = c % 16;
         row = c / 16;
         drawChar(startX + col * 10,
                  startY + row * 10,
                  (unsigned char)c, 255, &FONT_8);
     }
-    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
 }
 
-/* Sous-phase 3 : FONT_16 (myFont16 16x16 custom)
-   Grille de 16 colonnes, espacement 18 px. */
-   
-static void drawPhase3(void)
-{
-    int c, col = 0, row = 0;
-    int startX = (SCREEN_WIDTH - 16 * 18) / 2;
-    int startY = (SCREEN_HEIGHT - 8  * 18) / 2 + 9;
+/* Sous-phase 3 : FONT_16 (myFont16 16x16 custom), 2 pages.
+   Chaque page affiche 128 caractères en grille 16×8.
+   Espacement 18 px (16 px glyphe + 2 px marge).
+   Hauteur grille : 8 × 18 = 144 px — tient dans 200 px.
+   page = 0 : car. 0-127 / page = 1 : car. 128-255.
 
-    drawTextCentered(4, "FONT 16x16 - caracteres personnalises", 255, &FONT_BIOS);
+   Le titre indique la page courante et les touches actives. */
+static void drawPhase3(int page)
+{
+    int c, col, row;
+    int base   = page * 128;           /* premier code de la page   */
+    int startX = (SCREEN_WIDTH  - 16 * 18) / 2;
+    int startY = (SCREEN_HEIGHT -  8 * 18) / 2 + 9;
+
+    if (page == 0)
+        drawTextCentered(4, "myFont16 (16x16) - 0..127  [Tab>]", 255, &FONT_BIOS);
+    else
+        drawTextCentered(4, "myFont16 (16x16) - 128..255 [<Tab]", 255, &FONT_BIOS);
     drawLine(4, 15, 315, 15, 100);
 
     for (c = 0; c < 128; c++)
     {
-        /* Même logique que drawPhase2 : filtre désactivé
-           pour afficher la grille complète avec les trous
-           aux positions non définies dans la FontBank. */
-        // if (myFont16.lut[c] == -1) continue;
-
+        col = c % 16;
+        row = c / 16;
         drawChar(startX + col * 18,
                  startY + row * 18,
-                 (unsigned char)c, 255, &FONT_16);
-        col++;
-        if (col >= 16) { col = 0; row++; }
+                 (unsigned char)(base + c), 255, &FONT_16);
     }
-    drawTextCentered(187, "pressez une touche du clavier", 255, &FONT_BIOS);
+}
+
+/* =========================================================
+   RENDU D'UNE SOUS-PHASE (dispatch)
+   ========================================================= */
+
+/* Construit le backbuffer selon la phase et (pour phase 3)
+   la page courante, puis appelle flip(). */
+static void buildFrame(int phase, int page16)
+{
+    clearScreen(0);
+    switch (phase)
+    {
+        case 0: drawPhase1();       break;
+        case 1: drawPhase2();       break;
+        case 2: drawPhase3(page16); break;
+    }
+    flip();
 }
 
 /* =========================================================
@@ -148,17 +164,22 @@ static void drawPhase3(void)
 
 void scene3(void)
 {
+    /* Variables statiques : persistent entre les appels.
+       initialized = 0 force un rebuild du backbuffer au
+       prochain appel (après setScene ou changement de page). */
     static int           phase       = 0;
+    static int           page16      = 0;   /* page active en phase 3 */
     static int           initialized = 0;
     static PhaseState    state       = STATE_FADEIN;
     static unsigned long fadeStart   = 0;
 
-    unsigned long now     = readTimer();
+    unsigned long now = readTimer();
     unsigned long elapsed;
-    float t;
+    float         t;
+    int           key;
 
     /* -------------------------------------------------------
-       Initialisation de la sous-phase courante
+       Initialisation : construction du backbuffer et fade-in.
        ------------------------------------------------------- */
     if (!initialized)
     {
@@ -168,24 +189,16 @@ void scene3(void)
 
         generateBlackPalette(workingPalette);
         setPalette(workingPalette);
-        clearScreen(0);
-
-        switch (phase)
-        {
-            case 0: drawPhase1(); break;
-            case 1: drawPhase2(); break;
-            case 2: drawPhase3(); break;
-        }
-
-        flip();
+        buildFrame(phase, page16);
     }
 
     /* -------------------------------------------------------
-       Machine à états : FADEIN → DISPLAY → FADEOUT
+       Machine à états commune aux phases 1 et 2.
+       La phase 3 a sa propre gestion du clavier en DISPLAY.
        ------------------------------------------------------- */
     switch (state)
     {
-        /* Fondu entrant : luminosité 0 → 1 pendant FADE_MS. */
+        /* Fondu entrant : luminosité 0 → 1 sur FADE_MS ms. */
         case STATE_FADEIN:
             elapsed = elapsedTimeMs(fadeStart, now);
             t = (float)elapsed / (float)FADE_MS;
@@ -195,18 +208,45 @@ void scene3(void)
                 state = STATE_DISPLAY;
             break;
 
-        /* Attente d'une touche : palette stable. */
+        /* Attente d'une touche. */
         case STATE_DISPLAY:
             setPalette(pinkPalette);
-            if (kbhit())
+            if (!kbhit()) break;
+
+            key = getch();
+
+            if (phase < 2)
             {
-                getch();
+                /* Phases 1 et 2 : toute touche → phase suivante. */
                 state     = STATE_FADEOUT;
                 fadeStart = now;
             }
+            else
+            {
+                /* Phase 3 (FONT_16) : Tab bascule la page,
+                   toute autre touche passe à SCENE_4. */
+                if (key == KEY_TAB)
+                {
+                    /* Basculer la page sans fade : on éteint
+                       la palette, redessine, puis rallume. */
+                    page16 ^= 1;
+                    generateBlackPalette(workingPalette);
+                    setPalette(workingPalette);
+                    buildFrame(phase, page16);
+                    /* Relancer un fade-in pour la nouvelle page. */
+                    state     = STATE_FADEIN;
+                    fadeStart = readTimer();
+                }
+                else
+                {
+                    /* Toute autre touche → fade-out vers SCENE_4. */
+                    state     = STATE_FADEOUT;
+                    fadeStart = now;
+                }
+            }
             break;
 
-        /* Fondu sortant : luminosité 1 → 0 pendant FADE_MS. */
+        /* Fondu sortant : luminosité 1 → 0 sur FADE_MS ms. */
         case STATE_FADEOUT:
             elapsed = elapsedTimeMs(fadeStart, now);
             t = 1.0f - (float)elapsed / (float)FADE_MS;
@@ -218,13 +258,12 @@ void scene3(void)
                 phase++;
                 if (phase >= NB_PHASES)
                 {
-                    phase       = 0;
-                    initialized = 0;
-                    /* Vider le buffer clavier : la touche qui a déclenché
-                       le fade-out a été consommée par getch(), mais une
-                       éventuelle touche résiduelle déclencherait le
-                       kbhit() de main et couperait la boucle avant que
-                       scene4 ne soit jamais appelée. */
+                    /* Fin de la scène 3 : réinitialiser l'état
+                       statique pour une éventuelle relecture,
+                       vider le buffer clavier, puis passer à
+                       SCENE_4. */
+                    phase  = 0;
+                    page16 = 0;
                     while (kbhit()) getch();
                     setScene(SCENE_4);
                 }
