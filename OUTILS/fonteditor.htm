@@ -418,6 +418,10 @@
     <!-- Sélecteur -->
     <div>
       <div class="section-label">Caractères — vert = défini · bleu = actif</div>
+      <div style="display:flex;gap:4px;margin-bottom:8px">
+        <button class="mode-btn active" id="btn-page0" onclick="setCharPage(0)">0–127 · ASCII</button>
+        <button class="mode-btn"        id="btn-page1" onclick="setCharPage(1)">128–255 · CP437</button>
+      </div>
       <div id="char-grid"></div>
     </div>
 
@@ -510,7 +514,7 @@
       <div class="section-label">Export PNG de la police</div>
       <div style="display:flex;flex-direction:column;gap:6px">
         <div style="font-size:10px;color:var(--dim)">
-          Exporte tous les glyphes sur une grille 16×8 caractères (128 glyphes).
+          Exporte les 256 glyphes sur une grille 16×16 caractères.
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <label style="font-size:11px;color:var(--text2)">Échelle px/bit :</label>
