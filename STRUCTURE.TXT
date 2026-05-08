@@ -23,7 +23,7 @@ projet/
 ├── CLEANALL.BAT
 │
 └── OUTILS
-    ├── fonteditor.htm/.js (pour créer ses propres polices de caractères)
-    ├── img2vga.py (pour créer les fichiers *.pal et *.raw)
-    └── psf2c.py   (pour extraire le codage d'une police Linux PSF1/PSF2
-                    en .c (appels defineChar*) et .png (planche visuelle))
+    ├── fonteditor.htm et.js (pour créer ses propres polices de caractères)
+    ├── psf2c.py (pour extraire le codage d'une police Linux PSF1/PSF2
+    │             en .c (appels defineChar*) et .png (planche visuelle)) 
+    └── img2vga.py (pour créer les fichiers *.pal et *.raw)
