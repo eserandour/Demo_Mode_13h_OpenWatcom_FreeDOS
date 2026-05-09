@@ -6,6 +6,7 @@ wcc -ml -0 -os -I. graphics.c > graphics.out
 wcc -ml -0 -os -I. font.c > font.out
 wcc -ml -0 -os -I. fontdata.c > fontdata.out
 wcc -ml -0 -os -I. image.c > image.out
+wcc -ml -0 -os -I. font2.c > font2.out
 wcc -ml -0 -os -I. scene.c > scene.out
 wcc -ml -0 -os -I. scenes\scene1.c > scene1.out
 wcc -ml -0 -os -I. scenes\scene2.c > scene2.out
